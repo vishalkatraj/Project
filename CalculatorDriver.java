@@ -4,7 +4,7 @@ package guicalculator;
 import javax.swing.JFrame;
 
 /*
- * Driver Class for the Calcultor
+ * Driver Class
  *
 
  */
