@@ -1,0 +1,398 @@
+#!/usr/bin/env python
+# coding: utf-8
+#analyze file for covid case data 
+# In[161]:
+
+
+import numpy as np 
+import pandas as pandas
+from sklearn.cluster import KMeans
+from sklearn import metrics
+
+
+# In[162]:
+
+
+# linear regretion
+
+from sklearn import linear_model
+from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+
+
+# In[163]:
+# ploting library
+
+import matplotlib.pyplot as plt
+
+
+# In[164]:
+
+
+import seaborn as sns
+
+
+# In[165]:
+
+#inline ploting
+get_ipython().run_line_magic('matplotlib', 'inline')
+
+
+# In[ ]:
+
+# In[ ]:
+
+
+# In[166]:
+#create a new DataFrame by importing the CSV file
+pd = pandas.read_csv("Assessmetiment_series_covid19_Fina.csv", na_values=['?','na'])
+ In[167]:
+
+
+
+from pylab import rcParams
+rcParams['figure.figsize'] = 20, 5
+
+pandas.set_option('display.max_rows', 500)
+pandas.set_option('display.max_columns', 30)
+pandas.set_option('display.width', 1000)
+
+
+# In[168]:
+
+
+#To verify the DataFrame has loaded correctly head() is used#
+#pd.head() Alternatively
+
+display(pd)
+display(pd.isnull())
+pd.isnull().any()
+
+
+# In[169]:
+
+
+print (pd.head())
+# In[170]:
+#kmean 
+
+
+# In[171]:
+
+
+pd.Total.max()
+
+
+# In[172]:
+
+
+print(pd[pd.Total == pd.Total.max()])
+# maimum value of cases 
+
+# In[173]:
+
+
+DataF_results = pd[(pd.week1 >0) & (pd.Country_Region == pd.Total.max() )]
+
+
+# In[174]:
+
+
+pd.groupby('Province_State')['Country_Region'].value_counts()
+
+
+# In[175]:
+
+
+#sorting results
+pd.sort_values(by='Country_Region', ascending=False)
+pd.Total.plot.hist(bins=100)
+pd.Total.plot(x="Country_Region",kind='box')
+sns.boxplot(x="Country_Region", y='Total', data=pd) #ploting the sorted data
+
+
+# In[176]:
+
+
+#visuallizing the display  distribution of the values in the Difference column
+pd.hist(column='Total');
+pd.hist(column='week1');
+
+
+# In[177]:
+
+# get more info of a column
+pd["Total"].describe()
+
+
+# In[178]:
+
+
+pd['Total'].value_counts(ascending=True)
+
+
+# In[179]:
+
+
+# more on data exploration
+pd_results = pd[(pd.Total >0) & (pd.Total == pd.Total.max()) & ((pd.Country_Region == 'US') | (pd.Country_Region == 'Russia') | (pd.Country_Region == 'Spain'))]
+
+
+# In[180]:
+
+
+#printing results
+pd.head()
+
+
+# In[181]:
+
+
+#geting data from 
+
+
+# In[182]:
+
+
+df_results_1 = pd[(pd.Country_Region == 'Us')]
+df_results_1.head()
+
+
+# In[183]:
+
+
+pd_results.boxplot(by='Country_Region', column=['Total'], grid=False);
+
+
+# In[184]:
+
+
+#finding data patterns
+print (len(pd.Total))
+
+
+# In[185]:
+
+
+
+for i in range(len(pd.Total)):
+    diff = pd.Total.max() - pd.Total[i]
+    if (diff == max):
+        print (diff)
+# 
+
+# In[186]:
+
+
+pd_results_1 = pd[(pd.Country_Region == 'Us')]
+
+
+# In[187]:
+
+
+#validating the above results
+pd_results_1.head()
+
+
+# In[188]:
+
+
+# #better understanding of the key statistics and data distribution for dataframe 1
+pd_results_1["Total"].describe()
+
+
+# In[198]:
+
+
+#better understanding of the key statistics and data distribution dataframe 1
+
+
+# In[ ]:
+
+
+
+
+
+# In[205]:
+
+
+data = pd.groupby('Country_Region')['Total'].value_counts().sort_index(ascending=True)
+data.describe()
+
+
+# In[191]:
+
+
+def normalizeFeatures(X, mode="min-max"):   # Put all columns (classes) on the same scale (scaling) and brings them on the origin [0; 1]
+                                            # And add a 1s column for the factor associated to the bias 
+
+    X_t = X.T # Go from the individual points as lines to columns as lines (by default numpy operations are applied line by line)
+              #
+                               # x14, x24, x34
+
+    # For normalization we suppose no variable has always the same value (otherwise there would a division by 0)
+    # If a variable has always the same value, it should be removed from the dataset as it is pointless in the linear regression
+    
+    
+    if (mode == "min-max"): # Feature scaling using minimums and maximums
+        minimums = X_t.min(axis = 1)[:, None] # Create a new axis to convert scalars to 1-element arrays
+        maximums = X_t.max(axis = 1)[:, None] # Create a new axis to convert scalars to 1-element arrays
+        X_t = (X_t - minimums) / (maximums - minimums)
+
+    elif (mode == "z-score"): # Feature scaling using z_scores
+        X_t = (X_t - X_t.mean(axis = 1)[:, None]) / X_t.std(axis = 1)[:, None]
+
+    X = X_t.T
+    X = np.c_[np.ones((X.shape[0], 1)), X] # Add a 1s column to the new scaled matrix for the bias for matrix multiplications
+    
+    return X
+
+
+# In[192]:
+
+
+def load_data(path, y_label, drops=[]):
+    #create a new DataFrame by importing the CSV file
+    pd = pandas.read_csv(path, na_values=['?','na'])
+    
+    for drop in drops:                               # We add an optional "drops" argument, telling which columns to drop as soon as the data is loaded
+        pd = pd.drop(drop, axis=1)
+    
+    y = pd[y_label].to_numpy()                       # y_label tells which column corresponds to the ouput of our ML model, the value we will try to predict
+    X = pd.drop(y_label, axis=1).to_numpy()
+    
+    return X, y, pd
+
+
+# In[193]:
+
+
+def plot_weights_data_biasless(plt, X, y, w, title, same_scale = True):
+    intercept = w[0]
+    w = w[1:]
+    
+    n = len(w)
+    fig, axs = plt.subplots(2, n)
+    fig.suptitle(title, fontsize=20)
+    y_scale_line = (-1*((max(y)-min(y))/2), (max(y)-min(y))/2)
+    y_scale = (min(y), max(y))
+    
+    x_minimums = X.T.min(axis = 1)
+    x_maximums = X.T.max(axis = 1)
+    x_size = x_maximums - x_minimums
+    max_size = max(x_size)
+    
+    x = np.linspace(-100, 100, 100)
+    for i in range(n):
+        if same_scale:
+            diff_size = max_size - x_size[i]
+            x_scale = (x_minimums[i] - diff_size/2, x_maximums[i] + diff_size/2)            # We make it so all x scales are on the same scale
+            
+            if (n > 1):
+                axs[0][i].set_xlim(x_scale)
+                axs[0][i].set_ylim(y_scale)
+            else:
+                axs[0].set_xlim(x_scale)
+                axs[0].set_ylim(y_scale)
+                
+            heatmap, xedges, yedges = np.histogram2d(np.concatenate((X[:, i], x_scale)),    # We add a point in the upper-left corner and upper-right corner of the heatmap
+                                                     np.concatenate((y, y_scale)), bins=50) # so all heatmaps will have the same edges and be displayed correctly
+        else:
+            heatmap, xedges, yedges = np.histogram2d(X[:, i], y, bins=50)
+        
+        extent = [xedges[0], xedges[-1], yedges[0], yedges[-1]]
+        
+        if (n > 1):
+            axs[0][i].imshow(heatmap.T, extent=extent, origin='lower')
+
+            axs[1][i].set_xlim((-2, 2))
+            axs[1][i].set_ylim(y_scale_line)
+            axs[1][i].plot(x, w[i]*x, c="red", linewidth=2)
+        else:
+            axs[0].imshow(heatmap.T, extent=extent, origin='lower')
+
+            axs[1].set_xlim((-2, 2))
+            axs[1].set_ylim(y_scale_line)
+            axs[1].plot(x, w[i]*x, c="red", linewidth=2)
+        
+    fig.tight_layout()
+
+
+# In[194]:
+
+# function to start linear regression
+def linear_regression(path, y_label):
+    X, y, pd = load_data(path, y_label)
+    
+    w = np.random.randint(-10, 10, len(X[0]) + 1)
+    X_normalized = normalizeFeatures(X)
+    
+    all_results = []
+    for func in ["squares", "absolute"]:
+        print(func.capitalize(), "Cost Function Gradient Descent:\n")
+        results = gradientDescent(20, w.copy(), X_normalized, y, 100000, 0.000001, 1000, 10, func)
+        all_results.append(results)
+        
+        print()
+        print("Initial weights: ", w, "\n")
+        print("Least-squares cost function:")
+        
+        print("Execution time: %.2f ms" % results[1])
+        print("Final w: ", results[0])
+        print("Iterations: ", results[3])
+        print("Score: %.2f (%s)" % (results[4], func.capitalize()))
+    
+        print()
+        print("Mean Absolute Error: %.2f (from scratch), %.2f (sklearn)" % ( meanAbsoluteError(X_normalized, results[0], y),
+                                                                             mean_absolute_error(y, X_normalized @ results[0]) ))
+        print("Root Mean Squared Error: %.2f (from scratch), %.2f (sklearn)" % ( rootMeanSquaredError(X_normalized, results[0], y),
+                                                                                 mean_squared_error(y, X_normalized @ results[0], squared=False) ))
+        print("R2 Score: %.2f (from scratch), %.2f (sklearn)" % ( r2(X_normalized, results[0], y),
+                                                                  r2_score(y, X_normalized @ results[0]) ))
+        
+        print()
+
+    fig, ((ax1, ax2)) = plt.subplots(1, 2)
+    ax1.plot(np.linspace(0, all_results[0][3], all_results[0][3]), all_results[0][2])
+    ax1.set_title("Least-squares cost function")
+    ax2.plot(np.linspace(0, all_results[1][3], all_results[1][3]), all_results[1][2])
+    ax2.set_title("Absolute value cost function")
+    fig.tight_layout(pad=3.0)
+    
+    fig.suptitle("Evolution of the cost function with increasing iterations of the gradient descent", fontsize=20, y=1.08)
+
+    plot_weights_data_biasless(plt, X, y, all_results[0][0], "Square Cost Function - w: " + str(all_results[0][0]))
+    plot_weights_data_biasless(plt, X, y, all_results[1][0], "Absolute Value Cost Function - w: " + str(all_results[1][0]))
+    
+    return X, w, y, pd
+
+
+# In[195]:
+
+
+x,w,y, pd = linear_regression("Assessmetiment_series_covid19_Fina.csv", "Total")
+
+
+# In[196]:
+
+
+pd['Total'].value_counts().to_frame()
+pd['Total'].value_counts().loc[lambda x : x>10]
+
+
+# In[210]:
+# ploting the final results of the linear regretion
+
+pd.groupby('Country_Region')['Total']
+
+plt.scatter(df_results_1["Total"], df_results_2["Country_Region"]);
+plt.title("# of Cases")
+plt.xlabel("Us Cases")
+plt.ylabel("Italy Cases");
+
+
+
